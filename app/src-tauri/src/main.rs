@@ -49,6 +49,8 @@ struct Shell {
     status: Mutex<Option<MenuItem<Wry>>>,
     /// The tray's "Index Code" check.
     code_item: Mutex<Option<CheckMenuItem<Wry>>>,
+    /// The tray's "Index New Files": greyed out while files are being read.
+    index_item: Mutex<Option<MenuItem<Wry>>>,
     /// When the search service last reloaded the index (while indexing, at most every few seconds).
     reloaded: Mutex<Instant>,
     /// Debug runs with setup: the panel's query waits until the first index is in.
@@ -560,6 +562,7 @@ fn setup(app: &mut tauri::App, options: Options) -> Result<(), Box<dyn std::erro
         watcher: Mutex::new(None),
         status: Mutex::new(None),
         code_item: Mutex::new(None),
+        index_item: Mutex::new(None),
         reloaded: Mutex::new(Instant::now()),
         debug_query_sent: AtomicBool::new(false),
         logs,
@@ -841,7 +844,11 @@ fn make_tray(app: &AppHandle, shell: &Arc<Shell>) -> tauri::Result<()> {
                     Err(error) => set_status(app, &error),
                 }
             }
-            "index" => run_index(app),
+            "index" => {
+                if let Err(error) = index_new_files(app.clone()) {
+                    set_status(app, &error);
+                }
+            }
             "quit" => quit(app),
             _ => {}
         })
@@ -856,7 +863,16 @@ fn make_tray(app: &AppHandle, shell: &Arc<Shell>) -> tauri::Result<()> {
         .build(app)?;
     *shell.status.lock().unwrap() = Some(status);
     *shell.code_item.lock().unwrap() = Some(code_index);
+    *shell.index_item.lock().unwrap() = Some(index);
     Ok(())
+}
+
+/// While files are being read, "Index New Files" is greyed out, as the panel's button is: the watcher already syncs new
+/// files, and a sync asked for now only waits behind the file being read, so the click looked like it did nothing.
+fn enable_index_item(app: &AppHandle, enabled: bool) {
+    if let Some(item) = app.state::<Arc<Shell>>().index_item.lock().unwrap().as_ref() {
+        let _ = item.set_enabled(enabled);
+    }
 }
 
 fn set_status(app: &AppHandle, text: &str) {
@@ -888,14 +904,17 @@ fn index_event(app: &AppHandle, event: Value) {
     match event["event"].as_str().unwrap_or_default() {
         "file" => {
             set_status(app, &format!("Indexing {} of {}", count("done"), count("total")));
+            enable_index_item(app, false);
             reload(app, false);
         }
         "rest" => {
             set_status(app, &format!("Reading the rest of {} long files", count("files")));
+            enable_index_item(app, false);
             reload(app, false);
         }
         "idle" => {
             set_status(app, &format!("Up to date · {} files", count("searchable")));
+            enable_index_item(app, true);
             reload(app, true);
             // A debug run through setup searches once the first index is in.
             let shell = app.state::<Arc<Shell>>();
@@ -905,9 +924,13 @@ fn index_event(app: &AppHandle, event: Value) {
                 }
             }
         }
-        "waiting" => set_status(app, "Waiting for the model"),
+        "waiting" => {
+            set_status(app, "Waiting for the model");
+            enable_index_item(app, true);
+        }
         "error" => set_status(app, &format!("Indexing: {}", event["message"].as_str().unwrap_or("error"))),
         "exit" => {
+            enable_index_item(app, true);
             reload(app, true);
             // The watchdog ended the helper on a file it couldn't read (it left a note): a new one marks that file and
             // goes on.
