@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <img src="docs/demo.gif" width="760" alt="SpotLite finding a photo, the words in a screenshot, a PDF page, a video moment and code, copying a path, and showing Google's results in the panel">
+  <img src="docs/demo.gif" width="800" alt="SpotLite on COSMIC: finding zebras at a moment in a video, the pets clause on page 3 of a lease (then Copy path), a payment error by the words in a screenshot, dogs in snow from a Nepali query, Google's results in the panel, and code that opens in VS Code at the line">
 </p>
 
-<p align="center"><sub>With sample files: a photo, the words in a screenshot, a PDF page (then Copy path), a moment in a
-video, <code>code:</code>, and <code>search:</code>.</sub></p>
+<p align="center"><sub>Recorded on COSMIC with sample files: made-up documents and code, and CC0 or public-domain photos and
+videos from Wikimedia Commons.</sub></p>
 
 Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd>, describe what you remember ("the screenshot with the python
 error", "a map of bus routes", "what to do when a volcano erupts"), and SpotLite finds the file, and the place in it: the
