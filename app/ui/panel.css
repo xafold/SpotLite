@@ -1,0 +1,554 @@
+/* The search panel, "Moss & Amber": charcoal touched with moss, amber where your words were found. Sizes and wording
+   follow DigUp's Mac app's panel; light or dark follows the system. */
+
+:root {
+  --bg: #141613;
+  --raised: #1c1f1b;
+  --raised-2: #242823;
+  --line: rgba(214, 228, 200, 0.08);
+  --line-strong: rgba(214, 228, 200, 0.14);
+  --text: #eceee6;
+  --secondary: #a2a89b;
+  --tertiary: #6c7266;
+  --moss: #7fa36b;
+  --moss-bright: #9cc487;
+  --moss-soft: rgba(127, 163, 107, 0.16);
+  --amber: #e8a33d;
+  --amber-soft: rgba(232, 163, 61, 0.15);
+  --on-moss: #0f140d;
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  --glow-moss: rgba(127, 163, 107, 0.11);
+  --glow-amber: rgba(232, 163, 61, 0.06);
+  /* A dot per kind of file. */
+  --k-screenshot: #9cc487;
+  --k-image: #7fa36b;
+  --k-pdf: #e8a33d;
+  --k-doc: #e8a33d;
+  --k-video: #d27a52;
+  --k-audio: #6fb3a6;
+  --k-code: #9aa7c2;
+  --list-width: 336px;
+  font-family: "Inter", "Fira Sans", "Open Sans", system-ui, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+  font-size: 13px;
+  color: var(--text);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f5ef;
+    --raised: #ffffff;
+    --raised-2: #ecebe3;
+    --line: rgba(40, 48, 32, 0.09);
+    --line-strong: rgba(40, 48, 32, 0.16);
+    --text: #1b1d18;
+    --secondary: #5d6356;
+    --tertiary: #999e91;
+    --moss: #4f7a45;
+    --moss-bright: #3f6837;
+    --moss-soft: rgba(79, 122, 69, 0.13);
+    --amber: #b8720c;
+    --amber-soft: rgba(201, 127, 18, 0.14);
+    --on-moss: #ffffff;
+    --shadow: 0 12px 28px rgba(40, 48, 32, 0.18);
+    --glow-moss: rgba(79, 122, 69, 0.08);
+    --glow-amber: rgba(201, 127, 18, 0.06);
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* Hidden means hidden: .body and .footer set their own display, which would otherwise win over the attribute. */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+/* The panel is as tall as it asked the window to be (--wanted, from panel.js), or the window if that's smaller: should
+   a compositor keep the window taller, the rest stays transparent instead of showing an empty strip. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: min(100vh, var(--wanted, 100vh));
+  border-radius: 20px;
+  border: 1px solid var(--line-strong);
+  overflow: hidden;
+  background:
+    radial-gradient(110% 70% at 0% 0%, var(--glow-moss), transparent 60%),
+    radial-gradient(90% 60% at 100% 100%, var(--glow-amber), transparent 65%),
+    var(--bg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* The field */
+
+.field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  flex: none;
+  padding: 0 12px 0 18px;
+}
+
+.pick {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  stroke: var(--amber);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pick .handle { fill: none; stroke-width: 2.8; stroke: var(--moss); }
+.pick .head { fill: var(--amber); stroke-width: 2.2; stroke: var(--moss); }
+
+#query {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  caret-color: var(--amber);
+  font: inherit;
+  font-size: 21px;
+  letter-spacing: -0.01em;
+}
+
+#query::placeholder { color: var(--tertiary); }
+
+/* "Index new files": a pill that also says how indexing is going. */
+.dig {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  flex: none;
+  padding: 0 12px 0 10px;
+  border-radius: 99px;
+  border: 1px solid var(--line-strong);
+  background: var(--raised-2);
+  color: var(--secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.dig:hover { border-color: var(--moss); color: var(--text); }
+.dig:active { transform: translateY(0.5px); }
+
+.dig-mark {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.dig[data-state="idle"] .dig-mark::before,
+.dig[data-state="idle"] .dig-mark::after {
+  content: "";
+  position: absolute;
+  inset: 6px 1px;
+  border-radius: 2px;
+  background: var(--moss);
+}
+.dig[data-state="idle"] .dig-mark::after { inset: 1px 6px; }
+
+.dig[data-state="looking"] .dig-mark,
+.dig[data-state="indexing"] .dig-mark {
+  border-radius: 50%;
+  border: 2px solid var(--moss-soft);
+  border-top-color: var(--moss);
+  animation: spin 0.8s linear infinite;
+}
+
+.dig[data-state="indexing"] { color: var(--text); border-color: var(--moss-soft); background: var(--moss-soft); }
+.dig[data-state="done"] { color: var(--moss-bright); border-color: var(--moss-soft); }
+.dig[data-state="done"] .dig-mark::before {
+  content: "";
+  position: absolute;
+  left: 2px; top: 1px;
+  width: 5px; height: 9px;
+  border: solid var(--moss);
+  border-width: 0 2px 2px 0;
+  transform: translate(2px, 0) rotate(45deg);
+}
+.dig[data-state="error"] { color: var(--amber); border-color: var(--amber-soft); }
+.dig[data-state="error"] .dig-mark::before {
+  content: "!";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--amber);
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* The digging line under the field: how far indexing has got, or a shimmer while it looks for new files. */
+.progress {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  width: var(--done, 0%);
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--moss), var(--amber));
+  transition: width 0.3s ease-out;
+}
+
+.progress.looking span {
+  width: 35%;
+  animation: shimmer 1.1s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(290%); }
+}
+
+/* Results and preview */
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--line);
+}
+
+.list {
+  width: var(--list-width);
+  flex: none;
+  overflow-y: auto;
+  padding: 6px 8px 10px;
+  border-right: 1px solid var(--line);
+}
+
+.list::-webkit-scrollbar { width: 8px; }
+.list::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tertiary);
+  padding: 12px 10px 5px;
+}
+
+.group-title::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dot, var(--secondary));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot, var(--secondary)) 18%, transparent);
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 6px 9px;
+  border-radius: 12px;
+  min-height: 50px;
+  transition: background 0.1s;
+}
+
+.row:hover { background: rgba(127, 127, 127, 0.06); }
+
+.row.selected {
+  background: linear-gradient(90deg, var(--moss-soft), transparent 150%);
+  box-shadow: inset 3px 0 0 var(--moss);
+}
+
+.thumb {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 9px;
+  object-fit: cover;
+  background: var(--raised-2);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.thumb.icon {
+  display: grid;
+  place-items: center;
+  color: var(--dot, var(--secondary));
+}
+
+.thumb.icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.row-text { min-width: 0; flex: 1; }
+
+.row-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.row-title .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.row-sub {
+  font-size: 11px;
+  color: var(--secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 3px;
+}
+
+.row-sub b, .reason-text b { color: var(--amber); font-weight: 600; }
+
+.badge {
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.weaker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  margin-top: 6px;
+  border-radius: 10px;
+  color: var(--tertiary);
+  font-size: 12px;
+}
+
+.weaker:hover { color: var(--secondary); }
+.weaker.selected { background: var(--moss-soft); color: var(--text); }
+.weaker .chevron { transition: transform 0.15s; }
+.weaker.open .chevron { transform: rotate(90deg); }
+
+.preview {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px 14px;
+  overflow: hidden;
+  animation: appear 0.14s ease-out;
+}
+
+@keyframes appear { from { opacity: 0.4; } to { opacity: 1; } }
+
+.picture {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.picture img, .picture video {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+  box-shadow: var(--shadow), 0 0 0 1px var(--line);
+}
+
+.moment {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+}
+
+.moment img { max-width: 100%; max-height: 100%; }
+
+.play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(15, 20, 13, 0.55);
+  border: 1.5px solid rgba(255, 255, 255, 0.75);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.play svg { width: 22px; height: 22px; fill: white; margin-left: 4px; }
+
+.at {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: rgba(15, 20, 13, 0.6);
+  pointer-events: none;
+}
+
+.passage {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--line);
+  -webkit-mask-image: linear-gradient(to bottom, black 82%, transparent);
+}
+
+.passage.code { font-family: "JetBrains Mono", ui-monospace, "Fira Mono", "DejaVu Sans Mono", monospace; font-size: 11.5px; }
+.passage b { color: var(--text); }
+.passage mark { background: var(--amber-soft); color: var(--text); border-radius: 3px; box-shadow: 0 0 0 1px var(--amber-soft); }
+
+.audio-picture {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: var(--secondary);
+}
+
+.audio-picture svg { width: 58px; height: 58px; fill: none; stroke: var(--k-audio); stroke-width: 1.5; stroke-linecap: round; }
+.audio-picture audio { width: 90%; }
+
+.facts { flex: none; margin-top: 14px; }
+.facts .title { font-size: 16px; font-weight: 650; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facts .line { font-size: 12px; color: var(--secondary); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facts .line:first-of-type { color: var(--tertiary); }
+
+.reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 10px;
+  padding: 4px 11px 4px 8px;
+  border-radius: 99px;
+  background: var(--moss-soft);
+  color: var(--moss-bright);
+}
+
+.reason svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex: none; }
+.reason-text { margin: 6px 0 0 4px; font-size: 12px; color: var(--secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.buttons { display: flex; gap: 8px; margin-top: 12px; }
+
+.buttons button {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--raised-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 14px;
+  transition: filter 0.1s, border-color 0.1s;
+}
+
+.buttons button:first-child { background: var(--moss); color: var(--on-moss); border-color: transparent; font-weight: 600; }
+.buttons button:hover { border-color: var(--moss); }
+.buttons button:active { filter: brightness(0.92); }
+
+.message {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  color: var(--secondary);
+  padding: 0 40px;
+  line-height: 1.5;
+}
+
+.message strong { color: var(--text); font-size: 15px; }
+.message::before {
+  content: "";
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--amber-soft) 40%, transparent 72%);
+  box-shadow: 0 0 0 1px var(--amber-soft);
+  margin-bottom: 4px;
+}
+
+/* The footer */
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 32px;
+  flex: none;
+  padding: 0 16px;
+  font-size: 11px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 70%, black 6%);
+}
+
+.summary { color: var(--secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.keys { color: var(--tertiary); white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+
+kbd {
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  text-align: center;
+  color: var(--secondary);
+  background: var(--raised-2);
+  box-shadow: 0 0 0 1px var(--line), 0 1px 0 var(--line-strong);
+}
+
+.keys .gap { width: 8px; }

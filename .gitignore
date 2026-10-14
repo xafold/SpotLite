@@ -1,0 +1,7 @@
+/Vendor/
+/target/
+/dist/
+/engine/target/
+/app/src-tauri/target/
+/app/src-tauri/gen/
+__pycache__/
