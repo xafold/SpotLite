@@ -1,7 +1,8 @@
 //! The EmbeddingGemma 2 files: ggml-org's Q8_0 GGUF conversion at one pinned revision (never the F16 files: the
-//! model's activations overflow float16). `spotlite download-model [--to DIR]` puts them in DIR (default: SpotLite's Models
-//! folder). A file already in the Hugging Face cache is copied from there; anything else is downloaded, picking up
-//! where an earlier try stopped. Every file is checked (size, SHA-256) before it gets its name.
+//! model's activations overflow float16). `spotlite download-model [--to DIR]` puts them in DIR (default:
+//! $SPOTLITE_MODELS when set, as for finding them, else SpotLite's Models folder). A file already in the Hugging Face
+//! cache is copied from there; anything else is downloaded, picking up where an earlier try stopped. Every file is
+//! checked (size, SHA-256) before it gets its name.
 //!
 //! JSON lines on stdout:
 //!   {"event":"file","name":…,"bytes":n,"from":"cache|download"}             a file started
@@ -85,6 +86,7 @@ enum Outcome {
 }
 
 pub fn run(to: Option<String>) -> i32 {
+    let to = to.or_else(|| std::env::var("SPOTLITE_MODELS").ok().filter(|chosen| !chosen.is_empty()));
     let folder = to.map(|t| PathBuf::from(crate::paths::folder_path(&t))).unwrap_or_else(installed);
     if let Err(error) = std::fs::create_dir_all(&folder) {
         emit(json!({"event": "error", "message": format!("can't make {}: {error}", folder.display())}));

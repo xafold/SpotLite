@@ -374,6 +374,7 @@ fn reveal(app: AppHandle, path: String) -> Result<(), String> {
 fn hide_panel(app: AppHandle) {
     if let Some(panel) = app.get_webview_window("panel") {
         let _ = panel.hide();
+        let _ = panel.emit("panel-hidden", ());
     }
 }
 

@@ -598,10 +598,11 @@ def open_checks(base, env, base_args, bus_config, roots):
     # Not XDG_DATA_HOME: SpotLite's model is found through it.
     test_env = {**env, "XDG_CONFIG_HOME": str(config),
                 "XDG_DATA_DIRS": f"{share}:{env.get('XDG_DATA_DIRS', '/usr/local/share:/usr/share')}"}
-    states = ("pdf=what to do when a volcano erupts|pdf-open=!open|video=a colorful mandelbrot fractal|"
-              "video-open=!open|code=code: retry_with_backoff|code-open=!open|web=search: \"spotlite test\"|"
-              "web-panel=!open|web-reshow=!reshow|web-outside=!open-outside|web-again=search: \"spotlite test\"|"
-              "web-window=!open-window|files-again=a red circle|files-reshow=!reshow")
+    states = ("pdf=what to do when a volcano erupts|pdf-open=!open|video-clear=|"
+              "video=!enter:a colorful mandelbrot fractal|code=code: retry_with_backoff|code-open=!open|"
+              "web=search: \"spotlite test\"|web-panel=!open|web-reshow=!reshow|web-outside=!open-outside|"
+              "web-again=search: \"spotlite test\"|web-window=!open-window|files-again=a red circle|"
+              "files-reshow=!reshow")
     socket = "wl-spotlite-suite-open"
     runtime = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
     compositor = subprocess.Popen(["weston", "--backend=headless", "--renderer=pixman", "--width=1600",
@@ -639,7 +640,7 @@ def open_checks(base, env, base_args, bus_config, roots):
     check("ui", "a PDF opens in its default app at the page, finding a word from it",
           pdf and "--page-index=1" in pdf and any(a in ("--find=volcano", "--find=erupts") for a in pdf)
           and pdf[-1].endswith("volcano-guide.pdf") and buttons.get("pdf") == "Open at p. 1", f"{pdf} {buttons}")
-    check("ui", "a video opens in its default app at the moment",
+    check("ui", "a video opens in its default app at the moment, Enter pressed before the results came",
           video and video[0] == "--started-from-file" and any(a.startswith("--start-time=") and int(a[13:]) >= 4
                                                               for a in video)
           and video[-1].endswith("fractal.mp4") and (buttons.get("video") or "").startswith("Open at 0:0"),

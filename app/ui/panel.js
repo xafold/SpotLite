@@ -41,6 +41,7 @@ const $dig = $("dig"), $digLabel = $("dig-label"), $progress = $("progress");
 const state = {
   generation: 0,
   finalGeneration: -1,   // the generation whose meaning results are showing: late keyword results don't replace them
+  openOnResults: -1,     // Enter came before this generation's results: open its top one when they arrive
   timer: null,
   phase: "empty",        // empty | words | meaning | wordsOnly | codeHint | web (after "search:")
   text: "",              // what was searched (without "code:" or "search:")
@@ -101,6 +102,10 @@ function queryChanged() {
         if (generation !== state.generation) return;
         state.finalGeneration = generation;
         show(reply, text, reply.meaning ? "meaning" : "wordsOnly");
+        if (state.openOnResults === generation) {
+          state.openOnResults = -1;
+          openSelected();
+        }
         if (debugPending) report();
       })
       .catch(failed);
@@ -188,6 +193,9 @@ function openSelected() {
   if (state.phase === "web") return showWeb();
   const hit = selectedHit();
   if (hit) invoke("open_hit", { hit: openable(hit) }).catch(failed);
+  // Enter before there's a result (the search service just started, or no file has the words): the top one opens
+  // when the meaning results arrive.
+  else if (state.finalGeneration !== state.generation) state.openOnResults = state.generation;
 }
 
 /// What the shell needs to open a result where it matched: its page, moment or line, and on a PDF page a word of the
@@ -691,6 +699,8 @@ function askBrowser() {
 askBrowser();
 
 tauri.event.listen("focus-field", () => $query.focus());   // Ctrl+L in the web view
+// Closed before the results came: an Enter pressed while searching no longer opens anything.
+tauri.event.listen("panel-hidden", () => { state.openOnResults = -1; });
 // The results area moved or changed size: the web view follows it.
 new ResizeObserver(() => { if (state.webShown) showWeb(); }).observe($body);
 
@@ -833,6 +843,7 @@ tauri.event.listen("debug-query", ({ payload }) => debugSearch(payload));   // a
 // Debug runs (--debug-sizes "name=query|…"): the panel's states one after another, each reported with its size and
 // what shows, so a test can check (and photograph) every one. An empty query clears the field; "!weaker" opens the
 // weaker matches; "!open" opens the selected result (or, after "search:", the web search) as Enter does;
+// "!enter:words" types the words and presses Enter before any results came (it opens the top one when they do);
 // "!open-outside" searches the web in the default browser, as Ctrl+Enter does; "!open-window" in SpotLite's bigger
 // browser window, as Shift+Enter does; "!copy" copies the selected result's path, as Ctrl+Shift+C does; "!reshow"
 // hides the panel and shows it again, as the hotkey does.
@@ -846,6 +857,10 @@ invoke("debug_sizes").then(async (spec) => {
     if (query === "!weaker") {
       if (state.weaker.length) toggleWeaker();
     } else if (query === "!open") {
+      openSelected();
+    } else if (query.startsWith("!enter:")) {
+      $query.value = query.slice(7);   // typed, and Enter pressed at once: before any results
+      queryChanged();
       openSelected();
     } else if (query === "!open-outside") {
       openWeb(false);
