@@ -313,8 +313,10 @@ impl Searcher {
         // A page, passage or line of code that means something like the query but has none of its words is often
         // about something else ("spiderman taken into hospital": pages about hospitals): its meaning counts in
         // proportion to the share of the words it has, rare words weighing more, down to half. A picture, a frame or
-        // a sound has no words to have, so its meaning counts whole.
-        let worded = !patterns.is_empty();
+        // a sound has no words to have, so its meaning counts whole. Only when some file has all the words: with none
+        // (a query in another language, or other words for the same thing) the words say nothing about the meaning,
+        // and halving text let pictures and sounds outrank the page that means it (DigUp's multilingual evals).
+        let worded = coverage.values().any(|share| *share > 0.999);
         let mut scored: Vec<(i64, f64)> = candidates.into_iter().map(|file| {
             let share = weighted.get(&file).copied().unwrap_or(0.0);
             let meaning = best.get(&file).map_or(0.0, |b| {

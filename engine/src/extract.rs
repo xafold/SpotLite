@@ -473,7 +473,10 @@ pub fn keyframes(path: &str, interval: f64, max_pixel: usize, folder: &Path)
     let first = 0.5f64.min(duration / 2.0);
     let prefix = format!("frame-{}-", unique_name());
     let pattern = folder.join(format!("{prefix}%06d.jpg"));
-    let filter = format!("fps={},scale={max_pixel}:{max_pixel}:force_original_aspect_ratio=decrease", 1.0 / step);
+    // eof_action=pass: with keyframes only, the last one is the last input frame, and fps dropped it at the end (the
+    // last shot of a clip was never seen: the parrot in penguin|zebra|parrot).
+    let filter = format!("fps={}:eof_action=pass,scale={max_pixel}:{max_pixel}:force_original_aspect_ratio=decrease",
+                         1.0 / step);
     // Keyframes only: a frame every few seconds needs no more, and decoding every frame of a 4K film on the CPU took
     // longer than the watchdog allows (2026-10-14: 10 minutes of 2160p x265 in 8.7 s this way). Not when they're
     // sparse: a generated 8 s clip has one, at 0 s, before the first frame taken, and gave no frames at all.
